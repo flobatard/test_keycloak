@@ -1,0 +1,13 @@
+.git
+/node_modules
+/e2e
+/docs
+.gitignore
+*.zip
+*.md
+
+data
+optimized_images/preview
+optimized_images/thumbs
+optimized_images/webp
+logs
