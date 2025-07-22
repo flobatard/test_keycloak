@@ -1,5 +1,9 @@
+<div>Keycloak: {{keycloakInit ? "Actif" : "Inactif"}}</div>
 <div class="user-info" *ngIf="user">
     <div><label>Email: </label><span>{{user.email}}</span></div>
     <div><label>Username: </label><span>{{user.username }}</span></div>
+</div>
+<div class="user-info" *ngIf="!user">
+    <div><label>User: </label><span>Unknwon</span></div>
 </div>
 <router-outlet />

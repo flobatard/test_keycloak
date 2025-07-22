@@ -20,6 +20,6 @@ export class PrivateComponent implements OnInit {
 
   printKeyCloak()
   {
-    console.log(this.keycloakService.getKeycloakInstance())
+    console.log(this.keycloakService.getParsedToken())
   }
 }

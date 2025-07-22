@@ -10,8 +10,8 @@ import { Router, RouterModule } from '@angular/router';
   styleUrl: './login-component.scss'
 })
 export class LoginComponent implements OnInit{
-  readonly keycloakService = inject(KeycloakService)
-  router = inject(Router)
+
+  constructor(private keycloakService : KeycloakService, private router : Router){}
 
   ngOnInit(): void {
     if (!this.keycloakService.isLoggedIn())
