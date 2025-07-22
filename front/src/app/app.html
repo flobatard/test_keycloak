@@ -1,2 +1,5 @@
-<h1>TOTO</h1>
+<div class="user-info" *ngIf="user">
+    <div><label>Email: </label><span>{{user.email}}</span></div>
+    <div><label>Username: </label><span>{{user.username }}</span></div>
+</div>
 <router-outlet />

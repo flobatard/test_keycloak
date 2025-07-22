@@ -1,6 +1,6 @@
-FROM node:24-alpine as build
+FROM node:24-alpine
 
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
 RUN mkdir /project
 WORKDIR /project
@@ -19,4 +19,4 @@ COPY . .
 RUN ng build --configuration=$env
 RUN ng version
 
-CMD node ./dist/front/server/server.mjs
+CMD ["node", "./dist/front/server/server.mjs"]
