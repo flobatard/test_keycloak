@@ -11,6 +11,5 @@ import Keycloak from 'keycloak-js';
 export class PublicComponent implements OnInit {
   ngOnInit()
   {
-    
   }
 }

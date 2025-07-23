@@ -3,22 +3,18 @@ import Keycloak, { KeycloakTokenParsed } from 'keycloak-js';
 import { environment } from '../../environments/environment';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { isPlatformBrowser } from '@angular/common';
-import { UserService, AppUserInfo } from './user.service';
-
-export const initilizeKeycloak = (keycloakService  :KeycloakService) => 
-{
-  return keycloakService.init().then(() => undefined)
-}
 
 @Injectable({
   providedIn: 'root'
 })
 export class KeycloakService {
-  private keycloak!: Keycloak;
-  private initialized : BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false)
+  private keycloak !: Keycloak;
+  private $initialized : BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false)
+  private $token : BehaviorSubject<string | undefined> = new BehaviorSubject<string | undefined>(undefined)
+  private $parsedToken : BehaviorSubject<KeycloakTokenParsed | undefined> = new BehaviorSubject<any>(undefined)
   private platformId = inject(PLATFORM_ID)
   
-  constructor(private userService : UserService){
+  constructor(){
     console.log("Instancié: ", this.platformId, '\n',  new Error().stack)
   }
 
@@ -27,31 +23,34 @@ export class KeycloakService {
     if (!isPlatformBrowser(this.platformId)) {
       return Promise.resolve(false)
     }
+    if (this.isInitialized()) return Promise.resolve(false)
     this.keycloak = new Keycloak({
       url: environment.keycloak.url,
       realm: environment.keycloak.realm,
       clientId: environment.keycloak.clientId
     });
 
-    this.keycloak.onAuthLogout = () => this.userService.deleteUser()
-    this.keycloak.onAuthRefreshError = () => this.userService.deleteUser()
-    this.keycloak.onAuthError = () => this.userService.deleteUser()
-    this.keycloak.onAuthSuccess = () => {console.log("On auth"); this.onAuthSuccess()}
+    this.keycloak.onAuthLogout = () => this.updateData()
+    this.keycloak.onAuthRefreshError = () => this.updateData()
+    this.keycloak.onAuthError = () => this.updateData()
+    this.keycloak.onAuthSuccess = () => this.onAuthSuccess()
     this.keycloak.onTokenExpired = () => this.updateToken()
 
-    setInterval(() => console.log("Keycloak: ", this.keycloak.tokenParsed), 5000)
+    setInterval(() => console.log("Keycloak: ", this.keycloak?.tokenParsed), 5000)
+
+    console.log("Path: ",  window.location.origin + '/keycloak/silent-check-sso.html')
 
     return this.keycloak.init({
       onLoad: 'check-sso',
       pkceMethod: 'S256',
-      silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html'
+      silentCheckSsoRedirectUri: window.location.origin + '/keycloak/silent-check-sso.html'
     }).then(authenticated => {
       console.log('[Keycloak] Authenticated:', authenticated);
       if (authenticated) {
         console.log("In init: ", this.keycloak?.tokenParsed)
         this.onAuthSuccess()
       }
-      this.initialized.next(true)
+      this.$initialized.next(true)
       return authenticated;
     }).catch(err => {
       console.error('[Keycloak] Init Error:', err);
@@ -59,56 +58,75 @@ export class KeycloakService {
     });
   }
 
+  updateData()
+  {
+    if (this.keycloak.authenticated)
+    {
+      this.$token.next(this.keycloak.token)
+      this.$parsedToken.next(this.keycloak.tokenParsed)
+    }
+    else
+    {
+      this.$token.next(undefined)
+      this.$parsedToken.next(undefined)
+    }
+  }
+
   login(redirectUri = undefined) 
   {
-    if (!this.initialized.getValue()) return  
+    if (!this.isInitialized()) return  
     this.keycloak.login({redirectUri: redirectUri || `${environment.frontUrl}`})
   }
 
   logout() {
-    if (!this.initialized.getValue()) return
+    if (!this.isInitialized()) return
     this.keycloak.logout({ redirectUri: window.location.origin });
   }
 
   getToken(): string | undefined {
-    if (!this.initialized.getValue()) return
+    if (!this.isInitialized()) return
     return this.keycloak?.token;
   }
 
   getParsedToken() : KeycloakTokenParsed | undefined {
-    if (!this.initialized.getValue()) return
+    if (!this.isInitialized()) return
     return this.keycloak.idTokenParsed
   }
 
+  get$Token() : Observable<string | undefined> {
+    return this.$token.asObservable()
+  }
+
+  get$ParsedToken() : Observable<KeycloakTokenParsed | undefined> {
+    return this.$parsedToken.asObservable()
+  }
+
   getUserInfo() : any {
-    if (!this.initialized.getValue()) return
+    if (!this.isInitialized()) return
     return this.keycloak.userInfo
   }
 
   getKeycloakInstance(): Keycloak | undefined {
-    if (!this.initialized.getValue()) return
+    if (!this.isInitialized()) return
     return this.keycloak;
   }
 
   isLoggedIn(): boolean {
-    if (!this.initialized.getValue()) return false
+    if (!this.isInitialized()) return false
     return !!this.keycloak?.token;
   }
 
   onAuthSuccess() : void {
-    if (!this.initialized.getValue()) return
+    if (!this.isInitialized()) return
     if (!this.keycloak?.tokenParsed?.['email']) return
     
     console.log("In auth success: ", this.keycloak.tokenParsed) 
-    const user : AppUserInfo = {
-      email: this.keycloak.tokenParsed?.['email'] || '',
-      username: this.keycloak.tokenParsed?.['username'] || ''
-    }
-    this.userService.setUser(user)
+    
+    this.updateData()
   }
 
   updateToken() : void {
-    if (!this.initialized.getValue()) return
+    if (!this.isInitialized()) return
     console.log("[Keycloak] Refresh token")
     this.keycloak.updateToken().then(refreshed => {
       if (refreshed) {
@@ -120,10 +138,11 @@ export class KeycloakService {
   }
 
   isInitialized(){
-    return this.initialized.getValue()
+    console.log("Is intitialized: ", this.$initialized.getValue())
+    return this.$initialized.getValue()
   }
 
   get$Initialized(){
-    return this.initialized.asObservable()
+    return this.$initialized.asObservable()
   }
 }
